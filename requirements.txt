@@ -1,4 +1,7 @@
 streamlit
 transformers
 torch
-Pillow
+pillow
+opencv-python
+mediapipe
+pandas
