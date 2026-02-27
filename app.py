@@ -2,53 +2,77 @@ import streamlit as st
 from PIL import Image
 from transformers import pipeline
 
-# ------------------------------
 # Page configuration
-# ------------------------------
 st.set_page_config(
-    page_title="AI Animal Breed Classifier",
-    page_icon="🐶",
+    page_title="🐶 AI Animal Breed Classifier",
+    page_icon="🐾",
     layout="centered"
 )
 
-st.title("🐶 Cloud-Based Animal Breed Classifier")
+# CSS Styling
+st.markdown("""
+<style>
+body {
+    background-color: #f0f8ff;
+}
+h1, h2, h3 {
+    text-align: center;
+    font-family: 'Arial Black', sans-serif;
+}
+.prediction-table {
+    margin-left: auto;
+    margin-right: auto;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Title
+st.title("🐾 AI Animal Breed Classifier")
 st.write("Upload an image to detect the animal breed using AI.")
 
-# ------------------------------
-# Load model with caching
-# ------------------------------
+# Load token from secrets
+HF_TOKEN = st.secrets["HF_TOKEN"]
+
+# Cache the model to prevent reloading
 @st.cache_resource
-def load_model(token):
-    return pipeline("image-classification", model="google/vit-base-patch16-224", token=token)
+def load_model():
+    return pipeline("image-classification", model="google/vit-base-patch16-224", token=HF_TOKEN)
 
-# ------------------------------
-# Get Hugging Face token
-# ------------------------------
-# Option 1: Use Secrets (recommended for deployed app)
-# Make sure to add HF_TOKEN in Streamlit Secrets
-token = st.secrets.get("HF_TOKEN", None)
+classifier = load_model()
 
-# Option 2: Use input box (for local testing)
-if not token:
-    token = st.text_input("Enter Hugging Face Token", type="password")
-
-# ------------------------------
-# Upload image
-# ------------------------------
+# File uploader
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
     image = Image.open(uploaded_file)
-    st.image(image, width=400, caption="Uploaded Image")
+    
+    # Display uploaded image
+    st.image(image, caption="Uploaded Image", width=350)
 
-    if token:
-        with st.spinner("Analyzing Image..."):
-            classifier = load_model(token)
-            result = classifier(image)
+    # Analyze
+    with st.spinner("Analyzing Image..."):
+        results = classifier(image)
 
-        st.success("Prediction Complete!")
-        st.subheader("Top Predictions:")
-        for i in result[:5]:  # top 5 predictions
-            st.write(f"🐾 {i['label']} - {round(i['score']*100, 2)}%")
-    else:
-        st.warning("Please provide your Hugging Face token.")
+    # Display results
+    st.success("✅ Prediction Complete!")
+
+    st.subheader("Top 3 Predictions")
+    # Table format
+    import pandas as pd
+    pred_data = {
+        "Breed": [r["label"] for r in results[:3]],
+        "Confidence (%)": [round(r["score"] * 100, 2) for r in results[:3]]
+    }
+    df = pd.DataFrame(pred_data)
+    st.table(df)
+
+    # Optional: Download results as CSV
+    import io
+    csv_buffer = io.StringIO()
+    df.to_csv(csv_buffer, index=False)
+    st.download_button(
+        label="Download Predictions as CSV",
+        data=csv_buffer.getvalue(),
+        file_name="animal_predictions.csv",
+        mime="text/csv"
+    )
