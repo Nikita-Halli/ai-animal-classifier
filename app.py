@@ -1,6 +1,11 @@
 import streamlit as st
 from PIL import Image
 from transformers import pipeline
+import numpy as np
+import cv2
+import mediapipe as mp
+import pandas as pd
+import io
 
 # Page configuration
 st.set_page_config(
@@ -28,9 +33,9 @@ h1, h2, h3 {
 
 # Title
 st.title("🐾 AI Animal Breed Classifier")
-st.write("Upload an image to detect the animal breed using AI.")
+st.write("Upload an image to detect the animal breed using AI or detect humans.")
 
-# Load token from secrets
+# Load Hugging Face token from secrets
 HF_TOKEN = st.secrets["HF_TOKEN"]
 
 # Cache the model to prevent reloading
@@ -40,6 +45,10 @@ def load_model():
 
 classifier = load_model()
 
+# Initialize Mediapipe face detector
+mp_face = mp.solutions.face_detection
+face_detector = mp_face.FaceDetection(min_detection_confidence=0.5)
+
 # File uploader
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
@@ -48,31 +57,35 @@ if uploaded_file:
     
     # Display uploaded image
     st.image(image, caption="Uploaded Image", width=350)
-
-    # Analyze
-    with st.spinner("Analyzing Image..."):
-        results = classifier(image)
-
-    # Display results
-    st.success("✅ Prediction Complete!")
-
-    st.subheader("Top 3 Predictions")
-    # Table format
-    import pandas as pd
-    pred_data = {
-        "Breed": [r["label"] for r in results[:3]],
-        "Confidence (%)": [round(r["score"] * 100, 2) for r in results[:3]]
-    }
-    df = pd.DataFrame(pred_data)
-    st.table(df)
-
-    # Optional: Download results as CSV
-    import io
-    csv_buffer = io.StringIO()
-    df.to_csv(csv_buffer, index=False)
-    st.download_button(
-        label="Download Predictions as CSV",
-        data=csv_buffer.getvalue(),
-        file_name="animal_predictions.csv",
-        mime="text/csv"
-    )
+    
+    # Convert image to OpenCV format for human detection
+    image_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+    results = face_detector.process(image_cv)
+    
+    if results.detections:
+        st.warning("👤 Human detected! Animal breed classification skipped.")
+    else:
+        # Analyze animal breed
+        with st.spinner("Analyzing Image..."):
+            predictions = classifier(image)
+        
+        # Display results
+        st.success("✅ Prediction Complete!")
+        st.subheader("Top 3 Predictions")
+        
+        pred_data = {
+            "Breed": [r["label"] for r in predictions[:3]],
+            "Confidence (%)": [round(r["score"] * 100, 2) for r in predictions[:3]]
+        }
+        df = pd.DataFrame(pred_data)
+        st.table(df)
+        
+        # Optional: Download results as CSV
+        csv_buffer = io.StringIO()
+        df.to_csv(csv_buffer, index=False)
+        st.download_button(
+            label="Download Predictions as CSV",
+            data=csv_buffer.getvalue(),
+            file_name="animal_predictions.csv",
+            mime="text/csv"
+        )
