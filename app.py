@@ -1,77 +1,78 @@
 import streamlit as st
 from PIL import Image
 from transformers import pipeline
-import pandas as pd
 
-# ------------------- Page Config -------------------
-st.set_page_config(page_title="🐶 AI Animal Breed Classifier", 
-                   page_icon="🐾", layout="centered")
+# Page configuration
+st.set_page_config(
+    page_title="🐶 AI Animal Breed Classifier",
+    page_icon="🐾",
+    layout="centered"
+)
 
-# ------------------- Custom CSS -------------------
+# CSS Styling
 st.markdown("""
-    <style>
-    body {
-        background: linear-gradient(135deg, #fceabb, #f8b500);
-        font-family: 'Segoe UI', sans-serif;
-    }
-    .stApp {
-        color: #333;
-    }
-    .title {
-        text-align: center;
-        font-size: 40px;
-        font-weight: bold;
-    }
-    .card {
-        background-color: #fff;
-        padding: 25px;
-        border-radius: 15px;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-        margin-top: 20px;
-    }
-    .prediction:hover {
-        background-color: #ffe680;
-        border-radius: 8px;
-        transition: 0.3s;
-        cursor: pointer;
-    }
-    </style>
+<style>
+body {
+    background-color: #f0f8ff;
+}
+h1, h2, h3 {
+    text-align: center;
+    font-family: 'Arial Black', sans-serif;
+}
+.prediction-table {
+    margin-left: auto;
+    margin-right: auto;
+}
+</style>
 """, unsafe_allow_html=True)
 
-# ------------------- Title -------------------
-st.markdown('<div class="title">🐾 Cloud-Based Animal Breed Classifier 🐾</div>', unsafe_allow_html=True)
+# Title
+st.title("🐾 AI Animal Breed Classifier")
 st.write("Upload an image to detect the animal breed using AI.")
 
-# ------------------- Hugging Face Token -------------------
-token = st.text_input("Enter Hugging Face Token", type="password")
+# Load token from secrets
+HF_TOKEN = st.secrets["HF_TOKEN"]
 
-# ------------------- Image Upload -------------------
+# Cache the model to prevent reloading
+@st.cache_resource
+def load_model():
+    return pipeline("image-classification", model="google/vit-base-patch16-224", token=HF_TOKEN)
+
+classifier = load_model()
+
+# File uploader
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
-if uploaded_file and token:
+if uploaded_file:
     image = Image.open(uploaded_file)
     
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    # Display uploaded image
+    st.image(image, caption="Uploaded Image", width=350)
 
-    with st.spinner("Analyzing Image... 🐶"):
-        classifier = pipeline("image-classification", model="google/vit-base-patch16-224", token=token)
-        result = classifier(image)
+    # Analyze
+    with st.spinner("Analyzing Image..."):
+        results = classifier(image)
 
+    # Display results
     st.success("✅ Prediction Complete!")
 
-    st.subheader("Top Predictions:")
-    predictions_df = pd.DataFrame(result)
-    
-    for i in result[:3]:
-        label = i["label"]
-        score = round(i["score"]*100, 2)
-        # Add emojis for some common animals
-        emoji = "🐶" if "dog" in label.lower() else "🐱" if "cat" in label.lower() else "🐾"
-        st.markdown(f'<div class="prediction"> {emoji} **{label}** - {score}% confidence </div>', unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.subheader("Top 3 Predictions")
+    # Table format
+    import pandas as pd
+    pred_data = {
+        "Breed": [r["label"] for r in results[:3]],
+        "Confidence (%)": [round(r["score"] * 100, 2) for r in results[:3]]
+    }
+    df = pd.DataFrame(pred_data)
+    st.table(df)
 
-    # Optional: Download predictions
-    predictions_df.to_csv("predictions.csv", index=False)
-    st.download_button("Download Predictions CSV", data="predictions.csv", file_name="predictions.csv")
+    # Optional: Download results as CSV
+    import io
+    csv_buffer = io.StringIO()
+    df.to_csv(csv_buffer, index=False)
+    st.download_button(
+        label="Download Predictions as CSV",
+        data=csv_buffer.getvalue(),
+        file_name="animal_predictions.csv",
+        mime="text/csv"
+    )
