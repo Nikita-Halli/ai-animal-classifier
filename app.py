@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="Animal Breed Image Classifier", layout="centered")
 
 st.markdown("""
-    <h1 style='text-align: center;'>🌍 Universal Image Classifier</h1>
+    <h1 style='text-align: center;'>🌍Animal Breed Image Classifier</h1>
     <p style='text-align: center; font-size:18px;'>Upload any image and let AI predict what it sees</p>
 """, unsafe_allow_html=True)
 
@@ -96,4 +96,5 @@ st.write("""
 - **Type:** Convolutional Neural Network (CNN)
 - **Deployment:** Streamlit Cloud
 """)
+
 
