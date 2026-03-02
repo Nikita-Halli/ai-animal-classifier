@@ -7,7 +7,7 @@ import requests
 import numpy as np
 import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Universal Image Classifier", layout="centered")
+st.set_page_config(page_title="Animal Breed Image Classifier", layout="centered")
 
 st.markdown("""
     <h1 style='text-align: center;'>🌍 Universal Image Classifier</h1>
@@ -96,3 +96,4 @@ st.write("""
 - **Type:** Convolutional Neural Network (CNN)
 - **Deployment:** Streamlit Cloud
 """)
+
