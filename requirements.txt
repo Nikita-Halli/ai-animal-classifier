@@ -1,4 +1,6 @@
 streamlit
 torch
-transformers
+torchvision
 pillow
+requests
+matplotlib
