@@ -6,7 +6,7 @@ from PIL import Image
 import requests
 import matplotlib.pyplot as plt
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 import datetime
 import json
 
@@ -22,23 +22,23 @@ st.markdown("""
 # -------------------------------
 
 scope = [
-    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
 
-# Convert JSON string from secrets into dictionary
+# Load JSON string from Streamlit Secrets
 service_account_info = json.loads(st.secrets["gcp_service_account"])
 
-credentials = ServiceAccountCredentials.from_json_keyfile_dict(
+credentials = Credentials.from_service_account_info(
     service_account_info,
-    scope
+    scopes=scope
 )
 
 client = gspread.authorize(credentials)
 sheet = client.open("Animal_Predictions_DB").sheet1
 
 # -------------------------------
-# Load model
+# Load Model
 # -------------------------------
 
 @st.cache_resource
@@ -50,7 +50,7 @@ def load_model():
 model = load_model()
 
 # -------------------------------
-# Load labels
+# Load Labels
 # -------------------------------
 
 @st.cache_data
@@ -105,7 +105,7 @@ if uploaded_file:
         st.write(f"**{labels[top3_catid[i]]}** — {top3_prob[i].item() * 100:.2f}%")
 
     # -------------------------------
-    # Store Top Prediction in Sheet
+    # Store Top Prediction
     # -------------------------------
 
     predicted_label = labels[top3_catid[0]]
