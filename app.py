@@ -5,10 +5,8 @@ from torchvision import models
 from PIL import Image
 import requests
 import matplotlib.pyplot as plt
-import gspread
-from google.oauth2.service_account import Credentials
-import datetime
 import json
+import datetime
 
 st.set_page_config(page_title="Animal Breed Image Classifier", layout="centered")
 
@@ -18,29 +16,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------
-# Google Sheets Connection
-# -------------------------------
-
-scope = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
-
-# Load JSON string from Secrets
-service_account_info = json.loads(st.secrets["gcp_service_account"])
-
-credentials = Credentials.from_service_account_info(
-    service_account_info,
-    scopes=scope
-)
-
-client = gspread.authorize(credentials)
-sheet = client.open("Animal_Predictions_DB").sheet1
-
-# -------------------------------
 # Load Model
 # -------------------------------
-
 @st.cache_resource
 def load_model():
     model = models.mobilenet_v2(weights=models.MobileNet_V2_Weights.DEFAULT)
@@ -52,7 +29,6 @@ model = load_model()
 # -------------------------------
 # Load Labels
 # -------------------------------
-
 @st.cache_data
 def load_labels():
     labels_url = "https://raw.githubusercontent.com/pytorch/hub/master/imagenet_classes.txt"
@@ -63,7 +39,6 @@ labels = load_labels()
 # -------------------------------
 # Image Transform
 # -------------------------------
-
 transform = transforms.Compose([
     transforms.Resize(256),
     transforms.CenterCrop(224),
@@ -101,30 +76,33 @@ if uploaded_file:
     ax.invert_yaxis()
     st.pyplot(fig)
 
+    predictions = []
     for i in range(3):
         st.write(f"**{labels[top3_catid[i]]}** — {top3_prob[i].item() * 100:.2f}%")
+        predictions.append({
+            "label": labels[top3_catid[i]],
+            "confidence": round(top3_prob[i].item() * 100, 2)
+        })
 
     # -------------------------------
-    # Store Top Prediction
+    # Prepare JSON for Download
     # -------------------------------
+    result = {
+        "predictions": predictions,
+        "timestamp": str(datetime.datetime.now())
+    }
 
-    predicted_label = labels[top3_catid[0]]
-    confidence = top3_prob[0].item() * 100
-
-    try:
-        sheet.append_row([
-            predicted_label,
-            round(confidence, 2),
-            str(datetime.datetime.now())
-        ])
-        st.success("✅ Stored in Google Sheets (Cloud)")
-    except Exception as e:
-        st.error(f"Storage Error: {e}")
+    json_data = json.dumps(result, indent=4)
+    st.download_button(
+        label="📥 Download Predictions as JSON",
+        data=json_data,
+        file_name="animal_predictions.json",
+        mime="application/json"
+    )
 
 # -------------------------------
 # Model Info
 # -------------------------------
-
 st.markdown("---")
 st.markdown("### 🧠 Model Information")
 st.write("""
@@ -132,5 +110,5 @@ st.write("""
 - Framework: PyTorch  
 - Dataset: ImageNet  
 - Deployment: Streamlit Cloud  
-- Cloud Storage: Google Sheets  
+- Storage: JSON Download (Local)  
 """)
