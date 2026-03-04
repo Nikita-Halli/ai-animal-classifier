@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import gspread
 from google.oauth2.service_account import Credentials
 import datetime
+import json
 
 st.set_page_config(page_title="Animal Breed Image Classifier", layout="centered")
 
@@ -25,8 +26,8 @@ scope = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-# Directly read dictionary from Streamlit Secrets
-service_account_info = st.secrets["gcp_service_account"]
+# Load JSON string from Secrets
+service_account_info = json.loads(st.secrets["gcp_service_account"])
 
 credentials = Credentials.from_service_account_info(
     service_account_info,
@@ -42,7 +43,7 @@ sheet = client.open("Animal_Predictions_DB").sheet1
 
 @st.cache_resource
 def load_model():
-    model = models.mobilenet_v2(pretrained=True)
+    model = models.mobilenet_v2(weights=models.MobileNet_V2_Weights.DEFAULT)
     model.eval()
     return model
 
@@ -127,9 +128,9 @@ if uploaded_file:
 st.markdown("---")
 st.markdown("### 🧠 Model Information")
 st.write("""
-- **Model:** MobileNetV2
-- **Framework:** PyTorch
-- **Dataset:** ImageNet
-- **Deployment:** Streamlit Cloud
-- **Cloud Storage:** Google Sheets
+- Model: MobileNetV2  
+- Framework: PyTorch  
+- Dataset: ImageNet  
+- Deployment: Streamlit Cloud  
+- Cloud Storage: Google Sheets  
 """)
