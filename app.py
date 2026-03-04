@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import gspread
 from google.oauth2.service_account import Credentials
 import datetime
-import json
 
 st.set_page_config(page_title="Animal Breed Image Classifier", layout="centered")
 
@@ -26,8 +25,8 @@ scope = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-# Load JSON string from Streamlit Secrets
-service_account_info = json.loads(st.secrets["gcp_service_account"])
+# Directly read dictionary from Streamlit Secrets
+service_account_info = st.secrets["gcp_service_account"]
 
 credentials = Credentials.from_service_account_info(
     service_account_info,
