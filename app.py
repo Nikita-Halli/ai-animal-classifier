@@ -4,15 +4,33 @@ import torchvision.transforms as transforms
 from torchvision import models
 from PIL import Image
 import requests
-import numpy as np
 import matplotlib.pyplot as plt
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import datetime
 
 st.set_page_config(page_title="Animal Breed Image Classifier", layout="centered")
 
 st.markdown("""
-    <h1 style='text-align: center;'>🌍Animal Breed Image Classifier</h1>
+    <h1 style='text-align: center;'>🌍 Animal Breed Image Classifier</h1>
     <p style='text-align: center; font-size:18px;'>Upload any image and let AI predict what it sees</p>
 """, unsafe_allow_html=True)
+
+# -------------------------------
+# Google Sheets Connection
+# -------------------------------
+scope = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/drive"
+]
+
+credentials = ServiceAccountCredentials.from_json_keyfile_dict(
+    st.secrets["gcp_service_account"],
+    scope
+)
+
+client = gspread.authorize(credentials)
+sheet = client.open("Animal_Predictions_DB").sheet1
 
 
 # -------------------------------
@@ -51,12 +69,11 @@ transform = transforms.Compose([
     )
 ])
 
-
 uploaded_file = st.file_uploader("📤 Upload an Image", type=["jpg", "png", "jpeg"])
 
 if uploaded_file:
 
-    image = Image.open(uploaded_file)
+    image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
     img = transform(image).unsqueeze(0)
@@ -74,14 +91,30 @@ if uploaded_file:
     fig, ax = plt.subplots()
     ax.barh(
         [labels[top3_catid[i]] for i in range(3)],
-        [top3_prob[i].item()*100 for i in range(3)]
+        [top3_prob[i].item() * 100 for i in range(3)]
     )
     ax.set_xlabel("Confidence (%)")
     ax.invert_yaxis()
     st.pyplot(fig)
 
     for i in range(3):
-        st.write(f"**{labels[top3_catid[i]]}** — {top3_prob[i].item()*100:.2f}%")
+        st.write(f"**{labels[top3_catid[i]]}** — {top3_prob[i].item() * 100:.2f}%")
+
+    # -------------------------------
+    # Store ONLY Top-1 Prediction in Google Sheet
+    # -------------------------------
+    predicted_label = labels[top3_catid[0]]
+    confidence = top3_prob[0].item() * 100
+
+    try:
+        sheet.append_row([
+            predicted_label,
+            round(confidence, 2),
+            str(datetime.datetime.now())
+        ])
+        st.success("✅ Stored in Cloud (Google Sheets)")
+    except Exception as e:
+        st.error(f"Storage Error: {e}")
 
 
 # -------------------------------
@@ -95,6 +128,5 @@ st.write("""
 - **Dataset:** ImageNet (1000 object categories)
 - **Type:** Convolutional Neural Network (CNN)
 - **Deployment:** Streamlit Cloud
+- **Cloud Storage:** Google Sheets API
 """)
-
-
