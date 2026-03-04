@@ -4,3 +4,6 @@ torchvision
 pillow
 requests
 matplotlib
+gspread
+oauth2client
+
