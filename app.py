@@ -8,11 +8,45 @@ import matplotlib.pyplot as plt
 import json
 import datetime
 
-st.set_page_config(page_title="Animal Breed Image Classifier", layout="centered")
+# -------------------------------
+# Page Config
+# -------------------------------
+st.set_page_config(page_title="Animal Breed Classifier", layout="wide")
 
+# -------------------------------
+# Simple Login System
+# -------------------------------
+# You can replace this with a database in production
+USER_CREDENTIALS = {
+    "admin": "password123",
+    "user": "mypassword"
+}
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+def login():
+    username = st.session_state.username
+    password = st.session_state.password
+    if username in USER_CREDENTIALS and USER_CREDENTIALS[username] == password:
+        st.session_state.logged_in = True
+    else:
+        st.error("❌ Invalid username or password")
+
+if not st.session_state.logged_in:
+    st.markdown("<h1 style='text-align:center;'>🔐 Login to Animal Classifier</h1>", unsafe_allow_html=True)
+    st.text_input("Username", key="username")
+    st.text_input("Password", type="password", key="password")
+    st.button("Login", on_click=login)
+    st.stop()  # Stop execution until login
+
+# -------------------------------
+# Stylish Header
+# -------------------------------
 st.markdown("""
-    <h1 style='text-align: center;'>🌍 Animal Breed Image Classifier</h1>
-    <p style='text-align: center; font-size:18px;'>Upload any image and let AI predict what it sees</p>
+    <h1 style='text-align: center; color:#4B0082;'>🌍 Animal Breed Image Classifier</h1>
+    <p style='text-align: center; font-size:18px; color:gray;'>Upload an image and AI predicts the breed</p>
+    <hr style='border:1px solid #eee'>
 """, unsafe_allow_html=True)
 
 # -------------------------------
@@ -49,10 +83,13 @@ transform = transforms.Compose([
     )
 ])
 
-uploaded_file = st.file_uploader("📤 Upload an Image", type=["jpg", "png", "jpeg"])
+# -------------------------------
+# Upload Section
+# -------------------------------
+st.markdown("### 📤 Upload Image")
+uploaded_file = st.file_uploader("", type=["jpg", "png", "jpeg"], key="uploader")
 
 if uploaded_file:
-
     image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
@@ -65,12 +102,15 @@ if uploaded_file:
 
         top3_prob, top3_catid = torch.topk(probabilities, 3)
 
-    st.subheader("🎯 Top Predictions")
-
-    fig, ax = plt.subplots()
+    # -------------------------------
+    # Display Predictions
+    # -------------------------------
+    st.markdown("### 🎯 Top Predictions")
+    fig, ax = plt.subplots(figsize=(7,4))
     ax.barh(
         [labels[top3_catid[i]] for i in range(3)],
-        [top3_prob[i].item() * 100 for i in range(3)]
+        [top3_prob[i].item() * 100 for i in range(3)],
+        color="#4B0082"
     )
     ax.set_xlabel("Confidence (%)")
     ax.invert_yaxis()
@@ -85,9 +125,10 @@ if uploaded_file:
         })
 
     # -------------------------------
-    # Prepare JSON for Download
+    # JSON Download
     # -------------------------------
     result = {
+        "image_filename": uploaded_file.name,
         "predictions": predictions,
         "timestamp": str(datetime.datetime.now())
     }
@@ -109,6 +150,6 @@ st.write("""
 - Model: MobileNetV2  
 - Framework: PyTorch  
 - Dataset: ImageNet  
-- Deployment: Streamlit Cloud  
+- Deployment: Streamlit  
 - Storage: JSON Download (Local)  
 """)
