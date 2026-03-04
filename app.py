@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import datetime
+import json
 
 st.set_page_config(page_title="Animal Breed Image Classifier", layout="centered")
 
@@ -19,23 +20,27 @@ st.markdown("""
 # -------------------------------
 # Google Sheets Connection
 # -------------------------------
+
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
 ]
 
+# Convert JSON string from secrets into dictionary
+service_account_info = json.loads(st.secrets["gcp_service_account"])
+
 credentials = ServiceAccountCredentials.from_json_keyfile_dict(
-    st.secrets["gcp_service_account"],
+    service_account_info,
     scope
 )
 
 client = gspread.authorize(credentials)
 sheet = client.open("Animal_Predictions_DB").sheet1
 
+# -------------------------------
+# Load model
+# -------------------------------
 
-# -------------------------------
-# Load model (cached for speed)
-# -------------------------------
 @st.cache_resource
 def load_model():
     model = models.mobilenet_v2(pretrained=True)
@@ -44,10 +49,10 @@ def load_model():
 
 model = load_model()
 
+# -------------------------------
+# Load labels
+# -------------------------------
 
-# -------------------------------
-# Load ImageNet labels
-# -------------------------------
 @st.cache_data
 def load_labels():
     labels_url = "https://raw.githubusercontent.com/pytorch/hub/master/imagenet_classes.txt"
@@ -55,10 +60,10 @@ def load_labels():
 
 labels = load_labels()
 
-
 # -------------------------------
 # Image Transform
 # -------------------------------
+
 transform = transforms.Compose([
     transforms.Resize(256),
     transforms.CenterCrop(224),
@@ -87,7 +92,6 @@ if uploaded_file:
 
     st.subheader("🎯 Top Predictions")
 
-    # Bar Chart
     fig, ax = plt.subplots()
     ax.barh(
         [labels[top3_catid[i]] for i in range(3)],
@@ -101,8 +105,9 @@ if uploaded_file:
         st.write(f"**{labels[top3_catid[i]]}** — {top3_prob[i].item() * 100:.2f}%")
 
     # -------------------------------
-    # Store ONLY Top-1 Prediction in Google Sheet
+    # Store Top Prediction in Sheet
     # -------------------------------
+
     predicted_label = labels[top3_catid[0]]
     confidence = top3_prob[0].item() * 100
 
@@ -112,21 +117,20 @@ if uploaded_file:
             round(confidence, 2),
             str(datetime.datetime.now())
         ])
-        st.success("✅ Stored in Cloud (Google Sheets)")
+        st.success("✅ Stored in Google Sheets (Cloud)")
     except Exception as e:
         st.error(f"Storage Error: {e}")
 
+# -------------------------------
+# Model Info
+# -------------------------------
 
-# -------------------------------
-# Model Info Section
-# -------------------------------
 st.markdown("---")
 st.markdown("### 🧠 Model Information")
 st.write("""
 - **Model:** MobileNetV2
 - **Framework:** PyTorch
-- **Dataset:** ImageNet (1000 object categories)
-- **Type:** Convolutional Neural Network (CNN)
+- **Dataset:** ImageNet
 - **Deployment:** Streamlit Cloud
-- **Cloud Storage:** Google Sheets API
+- **Cloud Storage:** Google Sheets
 """)
